@@ -32,3 +32,4 @@ jobs:
       - name: Start lando
         run: |
           lando start
+          curl http://swiftd8.lndo.site/
