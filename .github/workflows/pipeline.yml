@@ -18,11 +18,17 @@ jobs:
           wget https://files.devwithlando.io/lando-stable.deb
           sudo dpkg -i lando-stable.deb
 
-      - uses: actions/cache@v2
+      - name: Cache images
+        id: cache-images
+        uses: actions/cache@v2
         with:
           path: |
-            /var/lib/docker
+            /tmp/images.tar
           key: test-docker-cache
+
+      - name: Load images
+        if: steps.cache-images.outputs.cache-hit == 'true'
+        run: docker load -i /tmp/images.tar
 
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -33,3 +39,8 @@ jobs:
           lando info
           sleep 10
           curl http://admin.sol.lndo.site/
+
+      - name: Save images
+        if: steps.cache-images.outputs.cache-hit != 'true'
+        run: |
+          docker save $(docker images -q) -o /tmp/images.tar
