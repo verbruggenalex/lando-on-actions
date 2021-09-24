@@ -24,4 +24,6 @@ jobs:
       - name: Start lando
         run: |
           lando start
+          lando info
+          sleep 10
           curl http://admin.sol.lndo.site/
