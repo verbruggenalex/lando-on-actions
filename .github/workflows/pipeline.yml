@@ -18,6 +18,12 @@ jobs:
           wget https://files.devwithlando.io/lando-stable.deb
           sudo dpkg -i lando-stable.deb
 
+    - uses: actions/cache@v2
+      with:
+        path: |
+          /var/lib/docker
+        key: test-docker-cache
+
       - name: Checkout repository
         uses: actions/checkout@v2
 
