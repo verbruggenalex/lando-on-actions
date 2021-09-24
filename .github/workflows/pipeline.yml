@@ -28,5 +28,7 @@ jobs:
         run: |
           wget https://files.devwithlando.io/lando-stable.deb
           sudo dpkg -i lando-stable.deb
-          lando
+
+      - name: Start lando
+        run: |
           lando start

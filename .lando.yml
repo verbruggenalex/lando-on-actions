@@ -1,0 +1,89 @@
+name: lando2
+recipe: drupal9
+config:
+  webroot: docroot
+  xdebug: true
+  php: '7.4'
+  config:
+    # here's our custom php.ini file
+    php: .lando.php.ini
+services:
+  appserver:
+    # Install the latest stable 2.x version
+    composer_version: 2
+    xdebug: true
+    overrides:
+      image: devwithlando/php:7.4-apache-2
+      build:
+        context: ./docker
+        dockerfile: Dockerfile
+      # Pass SSH keys.
+      volumes:
+        - type: bind
+          # Linux user: add 'export LANDO_SSH_AUTH_SOCK="${SSH_AUTH_SOCK}"' at the end of your ~/.bashrc:
+          # Mac user: MacOS specific path is here as the variable default value, nothing to do.
+          source: "${LANDO_SSH_AUTH_SOCK:-/run/host-services/ssh-auth.sock}"
+          target: /run/host-services/ssh-auth.sock
+      environment:
+        DRUSH_OPTIONS_URI: "http://swiftd8.lndo.site/"
+        SSH_AUTH_SOCK: /run/host-services/ssh-auth.sock
+        # Support debugging Drush with XDEBUG.
+        PHP_IDE_CONFIG: "serverName=appserver"
+      cap_add:
+        - SYS_ADMIN
+  node:
+    type: node
+    globals:
+      gulp-cli: latest
+      yarn: latest
+      bower: latest
+  # Spin up a Solr container called "search".
+  # Set "search" instead of "localhost"
+  # on the Drupal search api solr server configuration.
+  search:
+    # Use a specific Solr version.
+    type: solr:7
+    portforward: true
+    # This should be the directory containing the schema.xml and solrconfig.xml files.
+    # Download the config.zip and extract it.
+    config:
+      dir: solr/config
+  selenium:
+    type: compose
+    services:
+      image: selenium/standalone-chrome
+      user: root
+      volumes:
+        - /dev/shm:/dev/shm
+      command: /opt/bin/entry_point.sh
+tooling:
+  blt:
+    service: appserver
+    cmd: /app/vendor/bin/blt
+  xdebug-on:
+    service: appserver
+    description: Enable xdebug for apache.
+    cmd: "docker-php-ext-enable xdebug && /etc/init.d/apache2 reload"
+    user: root
+  xdebug-off:
+    service: appserver
+    description: Disable xdebug for apache.
+    cmd: "rm /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && /etc/init.d/apache2 reload"
+    user: root
+  ssh-fix:
+    service: appserver
+    description: Fix ssh auth sock permission for MacOS users. Lando rebuild fixes the problem as well.
+    cmd: "/bin/chgrp www-data /run/host-services/ssh-auth.sock && /bin/chmod g+w /run/host-services/ssh-auth.sock"
+    user: root
+  yarn:
+    service: node
+  test:
+    service: appserver
+    cmd: "php /app/vendor/bin/phpunit -c /app/phpunit.xml"
+events:
+  post-start:
+    - appserver: test -e ~/.ssh/config || printf 'Host *\n  AddKeysToAgent yes\n' > ~/.ssh/config
+proxy:
+  search:
+    - admin.solr.lndo.site:8983
+
